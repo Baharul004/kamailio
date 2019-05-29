@@ -1,0 +1,6 @@
+destination: lib/charmhelpers
+branch: lp:charm-helpers
+include:
+  - core
+  - contrib.storage
+  - fetch

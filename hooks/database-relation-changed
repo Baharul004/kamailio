@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+# coding=utf-8
+
+import os
+import sys
+import stat
+import setup
+setup.pre_install()
+
+#sys.path.insert(0, os.environ['CHARM_DIR'])
+#import lib.charmhelpers.core.hookenv
+sys.path.insert(0, os.path.join(os.environ['CHARM_DIR'], 'lib'))
+from charmhelpers.core import (
+    hookenv,
+    host,
+)
+
+config = hookenv.config()
+host_address = ''
+#print('HOST IP KAMAILIO', host_ip)
+#hookenv.log("Hello Juju log Start hook host add: {}".format(cfg[0]))
+for key in config:
+        if config.changed(key):
+                hookenv.log("config['{}'] changed from {} to {}".format(key, config.previous(key), config[key]))
+                host_address = config[key]
+
+#config.save()
+hookenv.log("HOST Chnaged IP Address: {}".format(host_address))
+
+rel_id =hookenv.relation_ids()
+hookenv.log('RELATION ID {}'.format(rel_id))
+#def database_relation_changed():
+hookenv.log('Database Relation Changed', 'INFO')
+db_user = hookenv.relation_get('user')
+db_db = hookenv.relation_get('database')
+db_pass = hookenv.relation_get('password')
+db_host = hookenv.relation_get('private-address')
+kam_host = hookenv.unit_get('private-address')
+#kam_host = host_address
+
+hookenv.log('DB USER {} '.format(db_user))
+hookenv.log('DB  {} '.format(db_db))
+hookenv.log('DB Pass {} '.format(db_pass))
+hookenv.log('DB HOST {} '.format(db_host))
+hookenv.log('KAMAILIO HOST {} '.format(kam_host))
+
+if db_db is None:
+        hookenv.log('No DATABASE Information sent', 'INFO')
+        exit()
+
+
+def database_relation_changed_kamailio_cfg_file():
+        with_mysql = '#!define WITH_MYSQL'
+        file = open('/etc/kamailio/kamailio.cfg').read()
+#       for line in file:
+        if with_mysql not in file:
+                file = open('/etc/kamailio/kamailio.cfg', 'r')
+                contents = file.readlines()
+                file.close()
+                contents.insert(2, '#!define WITH_MYSQL')
+#               file.writelines(contents)
+                contents.insert(3, '\n')
+                contents.insert(4, '#!define WITH_AUTH')
+                contents.insert(5, '\n')
+                contents.insert(6, '#!define WITH_USRLOCDB')
+                contents.insert(7, '\n')
+                file = open('/etc/kamailio/kamailio.cfg', 'w')
+                contents = "".join(contents)
+                file.write(contents)
+        else:
+                hookenv.log('WITH MYSQL line is NOT available', 'INFO')
+                #break
+def check():
+        dburl = '#!define DBURL "mysql://kamailio:kamailiorw@localhost/kamailio"'
+        dburl_replace ='#!define DBURL "mysql://kamailio:kamailiorw@{}/kamailio"'.format(db_host)
+        file = open('/etc/kamailio/kamailio.cfg').read()
+        if dburl in file:
+                file1 = file.replace(dburl, dburl_replace)
+                with open('/etc/kamailio/kamailio.cfg', 'w') as file:
+                   file.write(file1)
+                   file.close()
+                   hookenv.log('DBURL line is available', 'INFO')
+        else:
+                hookenv.log('DBURL line is not available', 'INFO')
+
+
+
+def database_relation_changed_kamctlrc_dbengine():
+        dbengine = '# DBENGINE=MYSQL'
+
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbengine in file:
+                file1 = file.replace(dbengine, 'DBENGINE=MYSQL')
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   hookenv.log('DBENGINE is replaced')
+                   file.close()
+        else:
+                hookenv.log('DBENGINE is not replaced')
+
+def database_relation_changed_kamctlrc_dbhost():
+        dbhost = '# DBHOST=localhost'
+        db_hos_replace ='DBHOST={}'.format(db_host)
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbhost in file:
+                file1 = file.replace(dbhost, db_hos_replace)
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   hookenv.log('DBHOST is replaced')
+                   file.close()
+        else:
+                hookenv.log('DBHOST is not replaced')
+
+def database_relation_changed_kamctlrc_dbport():
+        dbport = '# DBPORT=3306'
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbport in file:
+                file1 = file.replace(dbport, 'DBPORT=3306')
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   hookenv.log('DBPORT not replaced')
+                   file.close()
+        else:
+                hookenv.log('DBPORT is not replaced')
+
+def database_relation_changed_kamctlrc_dbrwuser():
+        dbrwuser = '# DBRWUSER="kamailio"'
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbrwuser in file:
+                file1 = file.replace(dbrwuser, 'DBRWUSER=kamailio')
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   hookenv.log('DBRWUSER is replaced')
+                   file.close()
+        else:
+                hookenv.log('DBRWUSER is not replaced')
+
+def database_relation_changed_kamctlrc_dbrwpw():
+        dbrwpw = '# DBRWPW="kamailiorw"'
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbrwpw in file:
+                file1 = file.replace(dbrwpw, 'DBRWPW=kamailiorw')
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   file.close()
+                   hookenv.log('DBRWPW is replaced')
+        else:
+                hookenv.log('DBRWPW is not replaced')
+
+def database_relation_changed_kamctlrc_dbaccesshost():
+        dbaccesshost = '# DBACCESSHOST=192.168.0.1'
+        dbaccesshost_replace ='DBACCESSHOST={}'.format(kam_host)
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbaccesshost in file:
+                file1 = file.replace(dbaccesshost, dbaccesshost_replace)
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   file.close()
+                   hookenv.log('DBACCESHOST is replaced')
+        else:
+                hookenv.log('DBACCESHOST is not replaced')
+def database_relation_changed_kamctlrc_dbrootuser():
+        dbrootuser ='# DBROOTUSER="root"'
+        dbrootuser_replace='DBROOTUSER={}'.format(db_user)
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbrootuser in file:
+                file1 = file.replace(dbrootuser, dbrootuser_replace)
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   file.close()
+                   hookenv.log('DBROOTUSER is replaced')
+        else:
+                hookenv.log('DBROOTUSER is not replaced')
+
+def database_relation_changed_kamctlrc_dbrootpw():
+        dbrootpw ='# DBROOTPW="dbrootpw"'
+        dbrootpw_replace='DBROOTPW={}'.format(db_pass)
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbrootpw in file:
+                file1 = file.replace(dbrootpw, dbrootpw_replace)
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   file.close()
+                   hookenv.log('DBROOTPW is replaced')
+        else:
+               hookenv.log('DBROOTPW is not replaced')
+
+
+def database_relation_changed_kamctlrc_install_table():
+        extra ='# INSTALL_EXTRA_TABLES=ask'
+#        presence ='# INSTALL_PRESENCE_TABLES=ask'
+#        dbuid ='# INSTALL_DBUID_TABLES=ask'
+
+        file = open('/etc/kamailio/kamctlrc').read()
+        if extra in file:
+                file1 = file.replace(extra, 'INSTALL_EXTRA_TABLES=yes')
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   file.close()
+                   hookenv.log('EXTRA TABALE is replaced')
+        else:
+                hookenv.log('EXTRA TABALE is not replaced')
+
+def database_relation_changed_kamctlrc_presence():
+        presence ='# INSTALL_PRESENCE_TABLES=ask'
+        file = open('/etc/kamailio/kamctlrc').read()
+        if presence in file:
+                file1 = file.replace(presence, 'INSTALL_PRESENCE_TABLES=yes')
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   file.close()
+                   hookenv.log('INSTALL_PRESENCE_TABLES is replaced')
+        else:
+                hookenv.log('INSTALL_PRESENCE_TABLES is not replaced')
+
+def database_relation_changed_kamctlrc_dbuid():
+        dbuid ='# INSTALL_DBUID_TABLES=ask'
+        file = open('/etc/kamailio/kamctlrc').read()
+        if dbuid in file:
+                file1 = file.replace(dbuid, 'INSTALL_DBUID_TABLES=no')
+                with open('/etc/kamailio/kamctlrc', 'w') as file:
+                   file.write(file1)
+                   file.close()
+                   hookenv.log('INSTALL_DBUID_TABLES is replaced')
+        else:
+                hookenv.log('INSTALL_DBUID_TABLES is not replaced')
+
+
+
+def kamailio_file_access():
+#        os.chmod('/etc/kamailio/kamctlrc', stat.S_IRWXO)
+#        os.chmod('/etc/kamailio/kamailio.cfg', stat.S_IRWXO)
+        os.chmod('/etc/kamailio/kamctlrc',0o0777)
+        os.chmod('/etc/kamailio/kamailio.cfg',0o0777)
+        os.system('kamdbctl create')
+        hookenv.log('Waiting for port activation', 'INFO')
+        hookenv.status_set('active', 'Connected with MYSQL Database')
+        hookenv.open_port(5060, protocol='UDP')
+        os.system('systemctl restart kamailio')
+#        os.system('reboot')
+
+
+
+
+if __name__ == "__main__":
+#        database_relation_changed()
+        database_relation_changed_kamailio_cfg_file()
+        check()
+#        database_relation_changed_kamctlrc()
+
+        database_relation_changed_kamctlrc_dbengine()
+        database_relation_changed_kamctlrc_dbhost()
+        database_relation_changed_kamctlrc_dbport()
+        database_relation_changed_kamctlrc_dbrwuser()
+        database_relation_changed_kamctlrc_dbrwpw()
+        database_relation_changed_kamctlrc_dbaccesshost()
+        database_relation_changed_kamctlrc_dbrootuser()
+        database_relation_changed_kamctlrc_dbrootpw()
+        database_relation_changed_kamctlrc_install_table()
+        database_relation_changed_kamctlrc_presence()
+        database_relation_changed_kamctlrc_dbuid()
+
+#        database_relation_changed_kamctlrc_install_table()
+        kamailio_file_access()
+

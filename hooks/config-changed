@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+# coding=utf-8
+
+import os
+import sys
+
+import setup
+setup.pre_install()
+
+#sys.path.insert(0, os.environ['CHARM_DIR'])
+#import lib.charmhelpers.core.hookenv
+sys.path.insert(0, os.path.join(os.environ['CHARM_DIR'], 'lib'))
+from charmhelpers.core import (
+    hookenv,
+    host,
+)
+#from charmhelpers.core.hookenv import config
+
+hooks = hookenv.Hooks()
+#log = hookenv.log
+# host ip for config-changed file
+config = hookenv.config()
+#for key in cfg:
+#       hookenv.log(cfg)
+#       hookenv.log(cfg.get(key))
+#       log("host {}".format(cfg[key]))
+
+#host_ip = cfg.get(default)
+
+#for key in host_ip:
+#hookenv.log(host_ip)
+host_address = ''
+host_url = ''
+#print('HOST IP KAMAILIO', host_ip)
+#hookenv.log("Hello Juju log Start hook host add: {}".format(cfg[0]))
+for key in config:
+#       if config.changed(key):
+        hookenv.log("config['{}'] changed from {} to {}".format(key, config.previous(key), config[key]))
+#               host_address = config[key]
+
+        if key =="host":
+                host_address =  config[key]
+        else:
+                host_url = config[key]
+#config.save()
+hookenv.log("HOST Chnaged IP Address: {}".format(host_address))
+
+
+
+
+#@hooks.hook('config-changed')
+def config_changed():
+        advertised_address='advertised_address'
+        advertised_insert='advertised_address={}'.format(host_address)
+        alias_insert='alias="{}"'.format(host_url)
+        alias_insert1='alias={}'.format(host_address)
+        kamailioCfg_file = open('/etc/kamailio/kamailio.cfg').read()
+        if advertised_address in kamailioCfg_file:
+                hookenv.log('Kamailio Advertised line is available', 'INFO')
+#                               break
+        else:
+                file = open('/etc/kamailio/kamailio.cfg', 'r')
+                file_contents = file.readlines()
+                file.close()
+                file_contents.insert(5,advertised_insert)
+                file_contents.insert(6, '\n')
+                file_contents.insert(7, alias_insert)
+                file_contents.insert(8, '\n')
+                file_contents.insert(9, alias_insert1)
+                file_contents.insert(10, '\n')
+
+#               kamailioCfg_file.writelines(file_contents)
+                file = open('/etc/kamailio/kamailio.cfg', 'w')
+                file_contents = "".join(file_contents)
+                file.write(file_contents)
+
+#        os.system('killall kamailio')
+#        os.system('kamailio')
+        os.system('shutdown /r /t 1')
+        hookenv.log('Kamailio RESTARTED', 'INFO')
+
+#@hooks.hook('config-changed')
+def insert_listen():
+        listen = '# listen=udp:10.0.0.10:5060'
+        listenReplacae = 'listen=eth0:5060 advertise {}:5060'.format(host_address)
+        file = open('/etc/kamailio/kamailio.cfg').read()
+        if listen in file:
+                file = file.replace(listen, listenReplacae)
+                f = open('/etc/kamailio/kamailio.cfg', 'w')
+                f.write(file)
+                f.close()
+                hookenv.log('{} Line is replaced by {}'.format(listen, listenReplacae))
+        else:
+                hookenv.log('{} Line is not available'.format(listen))
+
+
+
+if __name__ == "__main__":
+        config_changed()
+        insert_listen()
+

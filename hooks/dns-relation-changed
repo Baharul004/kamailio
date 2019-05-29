@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+import os
+import sys
+import stat
+import setup
+
+sys.path.insert(0, os.path.join(os.environ['CHARM_DIR'], 'lib'))
+from charmhelpers.core import (
+    hookenv,
+    host,
+)
+
+dns_host = hookenv.relation_get('private-address')
+
+dns_url = hookenv.relation_get('user')
+
+hookenv.log("DNS HOST IP Address: {}".format(dns_host))
+hookenv.log("DNS URL Address: {}".format(dns_url))
+
+#config = hookenv.config()
+
+
+#for key in config:
+#  if config.changed(key):
+#    hookenv.log("log {} new {}".format( hookenv.relation_get(config.previous(key)),  hookenv.relation_get(config[key])))
+
+
+def resolve():
+  name ='nameserver 127.0.0.53'
+  nameserver ='nameserver {}'.format(dns_host)
+  file = open('/etc/resolv.conf').read()
+  if name in file:
+    file1 = file.replace(name, nameserver)
+    with open('/etc/resolv.conf', 'w') as file:
+      file.write(file1)
+      hookenv.log('RESOLVE REPLACED', 'INFO')
+      file.close()
+  else:
+    hookenv.log('RESOLVE not  REPLACED', 'INFO')
+
+
+def port():
+  hookenv.log('Waiting for port activation', 'INFO')
+  hookenv.status_set('active', 'Connected with Kamailio')
+  hookenv.open_port(53, protocol='UDP')
+if __name__ == "__main__":
+  resolve()
+  port()
